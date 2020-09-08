@@ -27,6 +27,10 @@ greaterThan(QT_MAJOR_VERSION, 4) {
   SUBDIRS += tests
   tests.depends += libqtav libqtavwidgets
 }
+
+QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO
+QMAKE_LFLAGS_RELEASE = $$QMAKE_LFLAGS_RELEASE_WITH_DEBUGINFO
+
 OTHER_FILES += README.md TODO.txt Changelog
 OTHER_FILES += templates/vo.h templates/vo.cpp templates/COPYRIGHT.h templates/mkclass.sh
 OTHER_FILES += \

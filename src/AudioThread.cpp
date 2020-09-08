@@ -220,7 +220,7 @@ void AudioThread::run()
         // TODO: smaller scope
         QMutexLocker locker(&d.mutex);
         Q_UNUSED(locker);
-        AudioDecoder *dec = static_cast<AudioDecoder*>(d.dec);
+        AudioDecoder *dec = static_cast<AudioDecoder*>(d.dec.data());
         if (!dec) {
             pkt = Packet(); //mark invalid to take next
             continue;

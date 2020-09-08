@@ -43,21 +43,22 @@ using namespace QtAV;
 // TODO: watch main window
 EventFilter::EventFilter(AVPlayer *player) :
     QObject(player),
-    menu(0)
+    menu(nullptr)
 {
 }
 
 EventFilter::~EventFilter()
 {
+	m_bExit = true;
     if (menu) {
         delete menu;
-        menu = 0;
+        menu = nullptr;
     }
 }
 
 void EventFilter::openLocalFile()
 {
-    QString file = QFileDialog::getOpenFileName(0, tr("Open a video"));
+    QString file = QFileDialog::getOpenFileName(Q_NULLPTR, tr("Open a video"));
     if (file.isEmpty())
         return;
     AVPlayer *player = static_cast<AVPlayer*>(parent());
@@ -66,7 +67,7 @@ void EventFilter::openLocalFile()
 
 void EventFilter::openUrl()
 {
-    QString url = QInputDialog::getText(0, tr("Open an url"), tr("Url"));
+    QString url = QInputDialog::getText(Q_NULLPTR, tr("Open an url"), tr("Url"));
     if (url.isEmpty())
         return;
     AVPlayer *player = static_cast<AVPlayer*>(parent());
@@ -106,12 +107,14 @@ void EventFilter::help()
                        "<p>") + tr("Up/Down: volume +/-\n") + QString::fromLatin1("</p>"
                        "<p>") + tr("Ctrl+Up/Down: speed +/-\n") + QString::fromLatin1("</p>"
                        "<p>") + tr("-&gt;/&lt;-: seek forward/backward\n");
-    QMessageBox::about(0, tr("Help"), help);
+    QMessageBox::about(Q_NULLPTR, tr("Help"), help);
 }
 
 bool EventFilter::eventFilter(QObject *watched, QEvent *event)
 {
     Q_UNUSED(watched);
+    if (m_bExit)
+            return true;
     AVPlayer *player = static_cast<AVPlayer*>(parent());
     if (!player || !player->renderer() || !player->renderer()->widget())
         return false;

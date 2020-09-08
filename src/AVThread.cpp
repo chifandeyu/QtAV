@@ -155,7 +155,7 @@ void AVThread::scheduleFrameDrop(bool value)
                 decoder->setOptions(AVThreadPrivate::dec_opt_normal);
         }
     };
-    scheduleTask(new FrameDropTask(decoder(), value));
+    scheduleTask(new FrameDropTask(decoder().data(), value));
 }
 
 qreal AVThread::previousHistoryPts() const
@@ -251,7 +251,7 @@ PacketBuffer* AVThread::packetQueue() const
     return const_cast<PacketBuffer*>(&d_func().packets);
 }
 
-void AVThread::setDecoder(AVDecoder *decoder)
+void AVThread::setDecoder(QSharedPointer<AVDecoder> decoder)
 {
     DPTR_D(AVThread);
     QMutexLocker lock(&d.mutex);
@@ -259,7 +259,7 @@ void AVThread::setDecoder(AVDecoder *decoder)
     d.dec = decoder;
 }
 
-AVDecoder* AVThread::decoder() const
+QSharedPointer<AVDecoder> AVThread::decoder() const
 {
     return d_func().dec;
 }

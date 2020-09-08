@@ -54,13 +54,13 @@ public:
 
     PacketBuffer* packetQueue() const;
 
-    void setDecoder(AVDecoder *decoder);
-    AVDecoder *decoder() const;
+    void setDecoder(QSharedPointer<AVDecoder> decoder);
+    QSharedPointer<AVDecoder> decoder() const;
 
     void setOutput(AVOutput *out); //Q_DECL_DEPRECATED
     AVOutput* output() const; //Q_DECL_DEPRECATED
 
-    void setOutputSet(OutputSet *set);
+    void setOutputSet(OutputSet* set);
     OutputSet* outputSet() const;
 
     void setDemuxEnded(bool ended);

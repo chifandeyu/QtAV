@@ -27,6 +27,7 @@
 #include <QtCore/QSemaphore>
 #include <QtCore/QVariant>
 #include <QtCore/QWaitCondition>
+#include <QSharedPointer>
 #if QT_VERSION >= QT_VERSION_CHECK(4, 7, 0)
 #include <QtCore/QElapsedTimer>
 #else
@@ -81,7 +82,7 @@ public:
     volatile bool stop; //true when packets is empty and demux is end.
     AVClock *clock;
     PacketBuffer packets;
-    AVDecoder *dec;
+    QSharedPointer<AVDecoder> dec;
     OutputSet *outputSet;
     QMutex mutex;
     QWaitCondition cond; //pause

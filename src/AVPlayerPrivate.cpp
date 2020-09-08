@@ -111,6 +111,8 @@ AVPlayer::Private::Private()
     , status(NoMedia)
     , state(AVPlayer::StoppedState)
     , end_action(MediaEndAction_Default)
+    , last_known_good_pts(0)
+    , was_stepping(false)
 {
     demuxer.setInterruptTimeout(interrupt_timeout);
     /*
@@ -138,11 +140,13 @@ AVPlayer::Private::~Private() {
         ao = 0;
     }
     if (adec) {
-        delete adec;
+        //delete adec;
+        adec.clear();
         adec = 0;
     }
     if (vdec) {
-        delete vdec;
+        //delete vdec;
+        vdec.clear();
         vdec = 0;
     }
     if (vos) {
@@ -273,7 +277,9 @@ void AVPlayer::Private::initCommonStatistics(int s, Statistics::Common *st, AVCo
 #if (defined FF_API_R_FRAME_RATE && FF_API_R_FRAME_RATE) //removed in libav10
     //FIXME: which 1 should we choose? avg_frame_rate may be nan, r_frame_rate may be wrong(guessed value)
     else if (stream->r_frame_rate.den && stream->r_frame_rate.num) {
-        st->frame_rate = av_q2d(stream->r_frame_rate);
+        if (stream->r_frame_rate.num < 90000)
+            st->frame_rate = av_q2d(stream->r_frame_rate);
+
         qDebug("%d/%d", stream->r_frame_rate.num, stream->r_frame_rate.den);
     }
 #endif //FF_API_R_FRAME_RATE
@@ -361,18 +367,19 @@ bool AVPlayer::Private::setupAudioThread(AVPlayer *player)
     }
     qDebug("has audio");
     // TODO: no delete, just reset avctx and reopen
-    if (adec) {
+    if (!adec.isNull()) {
         adec->disconnect();
-        delete adec;
+        //delete adec;
+        adec.clear();
         adec = 0;
     }
-    adec = AudioDecoder::create();
-    if (!adec)
+    adec = QSharedPointer<AudioDecoder>(AudioDecoder::create());
+    if (adec.isNull())
     {
         qWarning("failed to create audio decoder");
         return false;
     }
-    QObject::connect(adec, SIGNAL(error(QtAV::AVError)), player, SIGNAL(error(QtAV::AVError)));
+    QObject::connect(adec.data(), SIGNAL(error(QtAV::AVError)), player, SIGNAL(error(QtAV::AVError)));
     adec->setCodecContext(avctx);
     adec->setOptions(ac_opt);
     if (!adec->open()) {
@@ -433,6 +440,7 @@ bool AVPlayer::Private::setupAudioThread(AVPlayer *player)
     // as it maybe clear after by AVDemuxThread starting
     athread->resetState();
     athread->setDecoder(adec);
+
     setAVOutput(ao, ao, athread);
     updateBufferValue(athread->packetQueue());
     initAudioStatistics(ademuxer->audioStream());
@@ -511,23 +519,24 @@ bool AVPlayer::Private::tryApplyDecoderPriority(AVPlayer *player)
 {
     // TODO: add an option to apply the new decoder even if not available
     qint64 pos = player->position();
-    VideoDecoder *vd = NULL;
+    QSharedPointer<VideoDecoder> vd = NULL;
     AVCodecContext *avctx = demuxer.videoCodecContext();
     foreach(VideoDecoderId vid, vc_ids) {
         qDebug("**********trying video decoder: %s...", VideoDecoder::name(vid));
-        vd = VideoDecoder::create(vid);
+        vd = QSharedPointer<VideoDecoder>(VideoDecoder::create(vid));
         if (!vd)
             continue;
         vd->setCodecContext(avctx); // It's fine because AVDecoder copy the avctx properties
         vd->setOptions(vc_opt);
         if (vd->open()) {
-            qDebug("**************Video decoder found:%p", vd);
+            qDebug("**************Video decoder found:%p", vd.data());
             break;
         }
-        delete vd;
+        //delete vd;
+        vd.clear();
         vd = 0;
     }
-    qDebug("**************set new decoder:%p -> %p", vdec, vd);
+    qDebug("**************set new decoder:%p -> %p", vdec.data(), vd.data());
     if (!vd) {
         Q_EMIT player->error(AVError(AVError::VideoCodecNotFound));
         return false;
@@ -535,16 +544,18 @@ bool AVPlayer::Private::tryApplyDecoderPriority(AVPlayer *player)
     if (vd->id() == vdec->id()
             && vd->options() == vdec->options()) {
         qDebug("Video decoder does not change");
-        delete vd;
+        //delete vd;
+        vd.clear();
         return true;
     }
     vthread->packetQueue()->clear();
     vthread->setDecoder(vd);
     // MUST delete decoder after video thread set the decoder to ensure the deleted vdec will not be used in vthread!
     if (vdec)
-        delete vdec;
+        vdec.clear();
+        //delete vdec;
     vdec = vd;
-    QObject::connect(vdec, SIGNAL(error(QtAV::AVError)), player, SIGNAL(error(QtAV::AVError)));
+    QObject::connect(vdec.data(), SIGNAL(error(QtAV::AVError)), player, SIGNAL(error(QtAV::AVError)));
     initVideoStatistics(demuxer.videoStream());
     // If no seek, drop packets until a key frame packet is found. But we may drop too many packets, and also a/v sync is a problem.
     player->setPosition(pos);
@@ -566,12 +577,12 @@ bool AVPlayer::Private::setupVideoThread(AVPlayer *player)
     }
     if (vdec) {
         vdec->disconnect();
-        delete vdec;
+        vdec.clear();
         vdec = 0;
     }
     foreach(VideoDecoderId vid, vc_ids) {
         qDebug("**********trying video decoder: %s...", VideoDecoder::name(vid));
-        VideoDecoder *vd = VideoDecoder::create(vid);
+        QSharedPointer<VideoDecoder> vd(VideoDecoder::create(vid));
         if (!vd) {
             continue;
         }
@@ -580,10 +591,11 @@ bool AVPlayer::Private::setupVideoThread(AVPlayer *player)
         vd->setOptions(vc_opt);
         if (vd->open()) {
             vdec = vd;
-            qDebug("**************Video decoder found:%p", vdec);
+            qDebug("**************Video decoder found:%p", vdec.data());
             break;
         }
-        delete vd;
+        vd.clear();
+        //delete vd;
     }
     if (!vdec) {
         // DO NOT emit error signals in VideoDecoder::open(). 1 signal is enough
@@ -592,7 +604,7 @@ bool AVPlayer::Private::setupVideoThread(AVPlayer *player)
         emit player->error(e);
         return false;
     }
-    QObject::connect(vdec, SIGNAL(error(QtAV::AVError)), player, SIGNAL(error(QtAV::AVError)));
+    QObject::connect(vdec.data(), SIGNAL(error(QtAV::AVError)), player, SIGNAL(error(QtAV::AVError)));
     if (!vthread) {
         vthread = new VideoThread(player);
         vthread->setClock(clock);

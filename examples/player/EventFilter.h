@@ -59,7 +59,8 @@ protected:
     void showMenu(const QPoint& p);
 
 private:
-    QMenu *menu;
+    QMenu *menu = nullptr;
+	bool m_bExit = false;
 };
 
 

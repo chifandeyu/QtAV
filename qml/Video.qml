@@ -91,6 +91,7 @@ Item {
     property alias internalVideoTracks: player.internalVideoTracks
     property alias internalSubtitleTracks: player.internalSubtitleTracks
     property alias internalSubtitleTrack: player.internalSubtitleTrack
+    property alias notifyInterval: player.notifyInterval
     /*** Properties of VideoOutput ***/
     /*!
         \qmlproperty enumeration Video::fillMode

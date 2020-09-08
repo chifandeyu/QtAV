@@ -17,6 +17,9 @@ CONFIG *= qtav-buildlib
 static: CONFIG *= static_ffmpeg
 INCLUDEPATH += $$[QT_INSTALL_HEADERS] # TODO: ffmpeg dir
 
+QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO
+QMAKE_LFLAGS_RELEASE = $$QMAKE_LFLAGS_RELEASE_WITH_DEBUGINFO
+
 #mac: simd.prf will load qt_build_config and the result is soname will prefixed with QT_INSTALL_LIBS and link flag will append soname after QMAKE_LFLAGS_SONAME
 config_libcedarv: CONFIG *= neon config_simd #need by qt4 addSimdCompiler(). neon or config_neon is required because tests/arch can not detect neon
 ## sse2 sse4_1 may be defined in Qt5 qmodule.pri but is not included. Qt4 defines sse and sse2
@@ -621,7 +624,7 @@ mac {
 
 unix:!mac:!cross_compile {
 icon.files = $$PWD/$${TARGET}.svg
-icon.path = /usr/share/icons/hicolor/scalable/apps
+icon.path = $$[QT_INSTALL_PREFIX]/share/icons/hicolor/scalable/apps
 INSTALLS += icon
 #debian
 DEB_INSTALL_LIST = .$$[QT_INSTALL_LIBS]/libQt*AV.so.*

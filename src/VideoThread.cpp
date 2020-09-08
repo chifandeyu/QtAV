@@ -241,7 +241,7 @@ bool VideoThread::deliverVideoFrame(VideoFrame &frame)
 void VideoThread::run()
 {
     DPTR_D(VideoThread);
-    if (!d.dec || !d.dec->isAvailable() || !d.outputSet)
+    if (d.dec.isNull() || !d.dec || !d.dec->isAvailable() || !d.outputSet)
         return;
     // resetState(); // we can't reset the thread state from here
     if (d.capture->autoSave()) {
@@ -249,7 +249,7 @@ void VideoThread::run()
     }
     //not neccesary context is managed by filters.
     d.filter_context = VideoFilterContext::create(VideoFilterContext::QtPainter);
-    VideoDecoder *dec = static_cast<VideoDecoder*>(d.dec);
+    VideoDecoder *dec = static_cast<VideoDecoder*>(d.dec.data());
     Packet pkt;
     QVariantHash *dec_opt = &d.dec_opt_normal; //TODO: restore old framedrop option after seek
     /*!
@@ -475,8 +475,8 @@ void VideoThread::run()
         }
 
         // decoder maybe changed in processNextTask(). code above MUST use d.dec but not dec
-        if (dec != static_cast<VideoDecoder*>(d.dec)) {
-            dec = static_cast<VideoDecoder*>(d.dec);
+        if (dec != static_cast<VideoDecoder*>(d.dec.data())) {
+            dec = static_cast<VideoDecoder*>(d.dec.data());
             if (!pkt.hasKeyFrame) {
                 wait_key_frame = true;
                 v_a = 0;
@@ -506,7 +506,6 @@ void VideoThread::run()
                     break;
             }
             pkt = Packet();
-            v_a = 0; //?
             continue;
         }
         // reduce here to ensure to decode the rest data in the next loop
@@ -519,7 +518,6 @@ void VideoThread::run()
                 pkt = Packet();
             else
                 pkt_data = pkt.data.constData();
-            v_a = 0; //?
             continue;
         }
         pkt_data = pkt.data.constData();
